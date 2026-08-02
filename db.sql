@@ -1,3 +1,8 @@
+TRUNCATE TABLE users;
+
+DROP TABLE refresh_tokens;
+DROP TABLE users;
+
 CREATE TABLE hospital (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name VARCHAR(255) NOT NULL,
@@ -15,15 +20,33 @@ CREATE TABLE hospital (
 -- Index สำหรับ query ตามพื้นที่ (ถ้าใช้ PostGIS)
 CREATE INDEX idx_hospitals_location ON hospitals USING GIST (location);
 
+
+
 CREATE TYPE user_role AS ENUM('user', 'admin');
+
+-- ประเภท department ของระบบ Office
+-- ('Human Resources', 'HR'),
+-- ('Accounting', 'ACC'),
+-- ('Sales', 'SALE'),
+-- ('Marketing', 'MKT'),
+-- ('Engineering', 'ENG'),
+-- ('Operations', 'OPS'),
+-- ('Customer Service', 'CS')
+CREATE TYPE depart_type AS ENUM('HR', 'ACC', 'SALE', 'MKT', 'ENG', 'OPS', 'CS');
+
+CREATE TYPE position_type AS ENUM ('staff', 'senior', 'lead', 'manager', 'director');
+
 
 -- สร้างฐานข้อมูลผู้ใช้
 CREATE TABLE users (
   id SERIAL PRIMARY KEY,
   name VARCHAR(255) NOT NULL,
+  sirname VARCHAR(255) NOT NULL,
   accname VARCHAR(255) NOT NULL,
   password TEXT NOT NULL,
   role user_role NOT NULL DEFAULT 'user',
+  department depart_type NOT NULL DEFAULT 'ENG',
+  position position_type NOT NULL DEFAULT 'staff',
   startdate DATE NOT NULL,
   createddate DATE NOT NULL,
   createdtime TIME NOT NULL
