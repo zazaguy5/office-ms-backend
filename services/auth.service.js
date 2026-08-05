@@ -21,10 +21,9 @@ async function login(username, password) {
     const accessToken = signAccessToken({ userId: user.id, role: user.role });
     const { refreshToken, expiresAt } = await issueRefreshToken(user.id);
     return apiMsg(200, 'success', 'Login successful', {
-      accessToken: accessToken,
       refreshToken: refreshToken,
       refreshExpiresAt: expiresAt,
-      user: { id: user.id, username: user.username, name: user.name, sirname: user.sirname, role: user.role }
+      user: { accessToken: accessToken, id: user.id, username: user.username, name: user.name, sirname: user.sirname, role: user.role }
     });
   } else {
     return apiMsg(401, 'error', 'Invalid username or password');
@@ -78,10 +77,9 @@ async function refresh(refreshTokenFromCookie) {
   const { refreshToken, expiresAt } = await issueRefreshToken(stored.user_id);
 
   return apiMsg(200, 'success', 'Refresh token successful', {
-    accessToken: accessToken,
     refreshToken: refreshToken,
     refreshExpiresAt: expiresAt,
-    user: { id: stored.id, username: stored.username, name: stored.name, role: stored.role }
+    user: { accessToken: accessToken, id: stored.id, username: stored.username, name: stored.name, role: stored.role }
   });
 }
 

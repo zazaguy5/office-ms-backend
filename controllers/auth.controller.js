@@ -26,13 +26,14 @@ async function login(req, res, next) {
     }
 
     const result = await authService.login(username, password);
+    //console.log(`user: ${JSON.stringify(result.data.user)}`);
     setRefreshCookie(res, result.refreshToken, result.refreshExpiresAt);
-    delete result.data.refreshToken; // ลบ refreshToken ออกจาก response body
-    delete result.data.refreshExpiresAt; // ลบ refreshExpiresAt ออกจาก response body
+    delete result.data.user.refreshToken; // ลบ refreshToken ออกจาก response body
+    delete result.data.user.refreshExpiresAt; // ลบ refreshExpiresAt ออกจาก response body
     res.status(result.code).json({
       status: result.status,
       message: result.message,
-      data: result.data
+      data: result.data.user
     });
   } catch (error) {
     next(error);
@@ -44,13 +45,14 @@ async function refresh(req, res, next) {
     const tokenFromCookie = req.cookies?.[REFRESH_COOKIE_NAME];
     const result = await authService.refresh(tokenFromCookie);
  
-    setRefreshCookie(res, result.data.refreshToken, result.data.refreshExpiresAt);
-    delete result.data.refreshToken; // ลบ refreshToken ออกจาก response body
-    delete result.data.refreshExpiresAt; // ลบ refreshExpiresAt ออกจาก response body
+    //console.log(`user: ${JSON.stringify(result.data.user)}`);
+    setRefreshCookie(res, result.data.user.refreshToken, result.data.user.refreshExpiresAt);
+    delete result.data.user.refreshToken; // ลบ refreshToken ออกจาก response body
+    delete result.data.user.refreshExpiresAt; // ลบ refreshExpiresAt ออกจาก response body
     res.status(result.code).json({
       status: result.status,
       message: result.message,
-      data: result.data
+      data: result.data.user
     });
   } catch (error) {
     next(error);
