@@ -10,15 +10,11 @@ CREATE TABLE hospital (
   address_line  TEXT,
   latitude      DECIMAL(10, 7) NOT NULL,      -- เช่น 13.7563309
   longitude     DECIMAL(10, 7) NOT NULL,      -- เช่น 100.5017651
-  location      GEOGRAPHY(POINT, 4326),       -- ใช้ถ้ามี PostGIS (query ระยะทางได้เร็ว)
   operating_hours JSONB,                      -- {"mon": "08:00-20:00", ...}
   is_active      BOOLEAN DEFAULT true,
   created_at     TIMESTAMPTZ DEFAULT now(),
   updated_at     TIMESTAMPTZ DEFAULT now()
 );
-
--- Index สำหรับ query ตามพื้นที่ (ถ้าใช้ PostGIS)
-CREATE INDEX idx_hospitals_location ON hospitals USING GIST (location);
 
 
 

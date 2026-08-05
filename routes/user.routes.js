@@ -1,5 +1,6 @@
 const express = require('express');
-const { getUsers, login, register, getProfile } = require('../controllers/user.controller');
+const { getUsers, login, register, getProfile, updateProfile } = require('../controllers/user.controller');
+const { requireAuth } = require('../middleware/auth.middleware');
 
 const router = express.Router();
 
@@ -13,6 +14,9 @@ router.post('/login', login);
 router.post('/register', register);
 
 // ดึงข้อมูลผู้ใช้ตามไอดี
-router.get('/profile/:id', getProfile);
+router.get('/profile/:id', requireAuth, getProfile);
+
+// แก้ไขข้อมูลผู้ใช้
+router.put('/profile', requireAuth, updateProfile);
 
 module.exports = router;

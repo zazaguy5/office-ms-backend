@@ -2,33 +2,33 @@ const bcrypt = require('bcryptjs');
 const pool = require('../config/db');
 const { signAccessToken } = require('../config/jwt');
 const { generateRefreshToken, hashToken } = require('../config/tokenHash');
+const { apiMsg } = require('../modules/apiResponse.module');
 require('../modules/auth.module');
 
 const REFRESH_TOKEN_TTL_DAYS = 7;
 
 async function login(username, password) {
-  const result = await pool.query('select * from users where users."accName" = $1', [username]);
+  const result = await pool.query('select * from users where users."accname" = $1', [username]);
   const user = result.rows[0];
   //console.log(`Enter password: ${password}, User password: ${user.password}`);
 
-  if (!user) {
-    throw new AuthError('Invalid username or password', 401);
+  if (user) {
+    const validPassword = await bcrypt.compare(password, user.password);
+    if (!validPassword) {
+      return apiMsg(401, 'error', 'Invalid username or password');
+    }
+
+    const accessToken = signAccessToken({ userId: user.id, role: user.role });
+    const { refreshToken, expiresAt } = await issueRefreshToken(user.id);
+    return apiMsg(200, 'success', 'Login successful', {
+      accessToken: accessToken,
+      refreshToken: refreshToken,
+      refreshExpiresAt: expiresAt,
+      user: { id: user.id, username: user.username, name: user.name, sirname: user.sirname, role: user.role }
+    });
+  } else {
+    return apiMsg(401, 'error', 'Invalid username or password');
   }
-
-  const validPassword = await bcrypt.compare(password, user.password);
-  if (!validPassword) {
-    throw new AuthError('Invalid username or password', 401);
-  }
-
-  const accessToken = signAccessToken({ userId: user.id, role: user.role });
-  const { refreshToken, expiresAt } = await issueRefreshToken(user.id);
-
-  return {
-    accessToken,
-    refreshToken,
-    refreshExpiresAt: expiresAt,
-    user: { id: user.id, username: user.username, role: user.role }
-  };
 }
 
 // สร้าง refresh token ใหม่และบันทึกลง DB (เก็บแค่ hash)
@@ -48,7 +48,7 @@ async function issueRefreshToken(userId) {
 // ใช้ refresh token แลก access token ใหม่ + หมุน refresh token ใหม่
 async function refresh(refreshTokenFromCookie) {
   if (!refreshTokenFromCookie) {
-    throw new AuthError('ไม่พบ refresh token', 401);
+    return apiMsg(401, 'error', 'Not found refresh token');
   }
 
   const tokenHash = hashToken(refreshTokenFromCookie);
@@ -63,13 +63,13 @@ async function refresh(refreshTokenFromCookie) {
 
   if (!stored) {
     // token ไม่พบใน DB — อาจถูกใช้ไปแล้ว (reuse) หรือปลอมมา
-    throw new AuthError('Refresh token ไม่ถูกต้อง', 401);
+    return apiMsg(401, 'error', 'Refresh token is invalid or has been used. Please log in again.');
   }
 
   // Refresh Token หมดอายุ
   if (new Date(stored.expires_at) < new Date()) {
     await pool.query('DELETE FROM refresh_tokens WHERE id = $1', [stored.id]);
-    throw new AuthError('Refresh token หมดอายุ กรุณาเข้าสู่ระบบใหม่', 401);
+    return apiMsg(401, 'error', 'Refresh token are expired. Please log in again.');
   }
 
   // ลบ Refresh Token ตัวเก่า ออกตัวใหม่ทันที ป้องกันการใช้ token เดิมซ้ำ
@@ -77,24 +77,29 @@ async function refresh(refreshTokenFromCookie) {
   const accessToken = signAccessToken({ userId: stored.user_id, role: stored.role });
   const { refreshToken, expiresAt } = await issueRefreshToken(stored.user_id);
 
-  return {
-    accessToken,
-    refreshToken,
+  return apiMsg(200, 'success', 'Refresh token successful', {
+    accessToken: accessToken,
+    refreshToken: refreshToken,
     refreshExpiresAt: expiresAt,
-    user: { id: stored.id, username: stored.username, role: stored.role }
-  };
+    user: { id: stored.id, username: stored.username, name: stored.name, role: stored.role }
+  });
 }
 
 // Logout: ลบ refresh token ออกจาก DB (revoke ทันที)
 async function logout(refreshTokenFromCookie) {
-  if (!refreshTokenFromCookie) return;
+  if (!refreshTokenFromCookie) return apiMsg(400, 'error', 'No refresh token provided');
   const tokenHash = hashToken(refreshTokenFromCookie);
-  await pool.query('DELETE FROM refresh_tokens WHERE token = $1', [tokenHash]);
+  const result = await pool.query('DELETE FROM refresh_tokens WHERE token = $1', [tokenHash]);
+  if (result.rowCount === 0) {
+    return apiMsg(404, 'error', 'Refresh token not found or already revoked');
+  }
+  return apiMsg(200, 'success', 'Logout successful');
 }
 
 // Logout ทุกอุปกรณ์ (ลบ refresh token ทั้งหมดของ user นั้น)
 async function logoutAllDevices(userId) {
-  await pool.query('DELETE FROM refresh_tokens WHERE user_id = $1', [userId]);
+  const result = await pool.query('DELETE FROM refresh_tokens WHERE user_id = $1', [userId]);
+  return apiMsg(200, 'success', 'All devices logged out successfully');
 }
 
 class AuthError extends Error {

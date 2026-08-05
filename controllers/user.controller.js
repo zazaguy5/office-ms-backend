@@ -40,6 +40,19 @@ async function register(req, res, next) {
   }
 }
 
+async function updateProfile(req, res, next) {
+  try {
+    const result = await userService.updateProfile(req.body);
+    res.status(result.code).json({
+      status: result.status,
+      message: result.message,
+      data: result.data
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
 async function getProfile(req, res, next) {
   const { id } = req.params;
 
@@ -55,4 +68,4 @@ async function getProfile(req, res, next) {
   }
 }
 
-module.exports = { getUsers, login, register, getProfile };
+module.exports = { getUsers, login, register, getProfile, updateProfile };

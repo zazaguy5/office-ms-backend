@@ -25,13 +25,14 @@ async function login(req, res, next) {
       return res.status(400).json({ status: 'error', message: 'Please fill username or password!' });
     }
 
-    const { accessToken, refreshToken, refreshExpiresAt, user } = await authService.login(username, password);
-    setRefreshCookie(res, refreshToken, refreshExpiresAt);
-    res.status(200).json({
-      status: 'success',
-      message: 'Login successful',
-      accessToken: accessToken,
-      data: user
+    const result = await authService.login(username, password);
+    setRefreshCookie(res, result.refreshToken, result.refreshExpiresAt);
+    delete result.data.refreshToken; // ลบ refreshToken ออกจาก response body
+    delete result.data.refreshExpiresAt; // ลบ refreshExpiresAt ออกจาก response body
+    res.status(result.code).json({
+      status: result.status,
+      message: result.message,
+      data: result.data
     });
   } catch (error) {
     next(error);
@@ -41,10 +42,16 @@ async function login(req, res, next) {
 async function refresh(req, res, next) {
   try {
     const tokenFromCookie = req.cookies?.[REFRESH_COOKIE_NAME];
-    const { accessToken, refreshToken, refreshExpiresAt, user } = await authService.refresh(tokenFromCookie);
+    const result = await authService.refresh(tokenFromCookie);
  
-    setRefreshCookie(res, refreshToken, refreshExpiresAt);
-    res.status(200).json({ status: 'success', accessToken, user });
+    setRefreshCookie(res, result.data.refreshToken, result.data.refreshExpiresAt);
+    delete result.data.refreshToken; // ลบ refreshToken ออกจาก response body
+    delete result.data.refreshExpiresAt; // ลบ refreshExpiresAt ออกจาก response body
+    res.status(result.code).json({
+      status: result.status,
+      message: result.message,
+      data: result.data
+    });
   } catch (error) {
     next(error);
   }
@@ -53,9 +60,13 @@ async function refresh(req, res, next) {
 async function logout(req, res, next) {
   try {
     const tokenFromCookie = req.cookies?.[REFRESH_COOKIE_NAME];
-    await authService.logout(tokenFromCookie);
+    const result = await authService.logout(tokenFromCookie);
     clearRefreshCookie(res);
-    res.status(200).json({ status: 'success', message: 'Logout success.' });
+    res.status(result.code).json({
+      status: result.status,
+      message: result.message,
+      accessToken: result.accessToken
+    });
   } catch (error) {
     next(error);
   }

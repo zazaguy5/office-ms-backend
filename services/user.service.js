@@ -1,5 +1,6 @@
 const bcrypt = require('bcrypt');
 const pool = require('../config/db');
+const { apiMsg } = require('../modules/apiResponse.module');
 
 async function fetchUsers() {
   try {
@@ -54,6 +55,25 @@ async function register(userDto) {
   }
 }
 
+async function updateProfile(userDto) {
+  const { userid, accname, name, sirname, department, position } = userDto;
+  //console.log(`name: ${name}, sirname: ${sirname}, department: ${department}, position: ${position}`);
+  const existingUser = await pool.query('select "accname" from users where users."accname" = $1', [accname]);
+  if (existingUser.rowCount === 0) {
+    const result = await pool.query(
+      'insert into users ("name", "sirname", "department", "position") VALUES ($1, $2, $3, $4)', 
+      [name, sirname, department, position]
+    );
+    if (!result) {
+      return apiMsg(500, 'failed', 'Failed to update user');
+    }
+
+    return apiMsg(200, 'success', 'Updated account');
+  } else {
+    return apiMsg(404, 'failed', 'Account not found!');
+  }
+}
+
 async function getProfile(userid) {
   // เช็คบัญชีที่มาจาก request ว่ามีอยู่จริงหรือไม่
   const result = await pool.query('select * from users where users."id" = $1', [userid]);
@@ -67,14 +87,10 @@ async function getProfile(userid) {
   }
 }
 
-function apiMsg(code, status, message, data = null) {
-  return { code: code, status: status, message: message, data: data };
-}
-
 async function hashPassword(password) {
   const saltRounds = 12;
   const hashedPassword = await bcrypt.hash(password, saltRounds);
   return hashedPassword;
 }
 
-module.exports = { fetchUsers, login, register, getProfile };
+module.exports = { fetchUsers, login, register, getProfile, updateProfile };
